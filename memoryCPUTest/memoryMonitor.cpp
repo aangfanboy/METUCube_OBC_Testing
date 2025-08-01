@@ -2,6 +2,17 @@
 #include <fstream>
 #include <string>
 #include <unordered_map>
+#include <sstream>
+#include <chrono>
+#include <thread>
+#include <csignal>
+#include <vector>
+
+bool running = true;
+
+void handle_interrupt(int) {
+    running = false;
+}
 
 std::unordered_map<std::string, long> read_meminfo() {
     std::ifstream file("/proc/meminfo");
@@ -20,25 +31,32 @@ std::unordered_map<std::string, long> read_meminfo() {
 }
 
 int main() {
-    auto meminfo = read_meminfo();
+    signal(SIGINT, handle_interrupt);
 
-    long mem_total = meminfo["MemTotal"];
-    long mem_free = meminfo["MemFree"];
-    long buffers = meminfo["Buffers"];
-    long cached = meminfo["Cached"];
-    long sreclaimable = meminfo["SReclaimable"];
-    long shmem = meminfo["Shmem"];
+    while (running)
+    {
+        auto meminfo = read_meminfo();
 
-    // Calculate used memory: total - free - buffers - cached (+shared reclaimable - shmem)
-    long mem_used = mem_total - mem_free - buffers - cached - sreclaimable + shmem;
+        long mem_total = meminfo["MemTotal"];
+        long mem_free = meminfo["MemFree"];
+        long buffers = meminfo["Buffers"];
+        long cached = meminfo["Cached"];
+        long sreclaimable = meminfo["SReclaimable"];
+        long shmem = meminfo["Shmem"];
+    
+        long mem_used = mem_total - mem_free - buffers - cached - sreclaimable + shmem;
+    
+        std::cout << "Total Memory: " << mem_total / 1024 << " MB" << std::endl;
+        std::cout << "Used Memory : " << mem_used / 1024 << " MB" << std::endl;
+        std::cout << "Free Memory : " << mem_free / 1024 << " MB" << std::endl;
+        std::cout << "Buffers    : " << buffers / 1024 << " MB" << std::endl;
+        std::cout << "Cached     : " << cached / 1024 << " MB" << std::endl;
+        std::cout << "SReclaimable: " << sreclaimable / 1024 << " MB" << std::endl;
+        std::cout << "Shmem      : " << shmem / 1024 << " MB" << std::endl;
 
-    std::cout << "Total Memory: " << mem_total / 1024 << " MB" << std::endl;
-    std::cout << "Used Memory : " << mem_used / 1024 << " MB" << std::endl;
-    std::cout << "Free Memory : " << mem_free / 1024 << " MB" << std::endl;
-    std::cout << "Buffers    : " << buffers / 1024 << " MB" << std::endl;
-    std::cout << "Cached     : " << cached / 1024 << " MB" << std::endl;
-    std::cout << "SReclaimable: " << sreclaimable / 1024 << " MB" << std::endl;
-    std::cout << "Shmem      : " << shmem / 1024 << " MB" << std::endl;
+        std::cout << "----------------------------------------" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // Sleep for 1 second
+    }
 
     return 0;
 }
